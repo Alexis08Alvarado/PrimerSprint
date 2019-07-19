@@ -1,0 +1,48 @@
+---
+- hosts: localhost
+  connection: local
+  gather_facts: no
+  vars:
+    smtp_server:      10.100.13.31
+    mail_from:        Ansible Automation Platform <sysadmin@gmd.com.pe> #correo por el cual se envía la clave
+    mail_to:          Alexis Alvarado <aalvarado@canvia.com> #campo que introduce al momento de rellenar el formulario
+    mail_subject:     Contraseña del administrador
+    mail_body:        Contraseña Generada para el administrador #Mensaje que va en el correo
+    clavetxt:        /tmp/clave.txt
+    zip_pass:        "{{ clavetxt }}.zip"
+    # os_zippass2:     "{{ os_zippass }}"
+
+  tasks: 
+
+    - name: Generar contraseña aleatoria
+      shell: openssl rand -base64 12
+      # delegate_to: localhost
+      register: password_random
+
+    - name: Asignar clave como administrador
+      set_fact: 
+        os_adminpass: "{{ password_random.stdout }}"
+        
+    - name: Guardar contraseña generada en un archivo txt
+      copy:
+        content: "{{ os_adminpass }}"
+        dest: "{{ clavetxt }}"
+
+    - name: Comprimir el txt y asignarle una contraseña 
+      local_action: shell zip -P {{ os_zippass2 }} {{ zip_pass }} {{ clavetxt }}
+       # delegate_to: localhost
+      run_once: True 
+
+    - name: Enviar reporte por correo 
+      mail: 
+        host: "{{ smtp_server }}" 
+        port: 25 
+        from: "{{ mail_from }}" 
+        to: "{{ mail_to }}" 
+        subject: "{{ mail_subject }}" 
+        body: "{{ mail_body }}" 
+        attach: 
+          - "{{ zip_pass }}" 
+      # delegate_to: localhost 
+      run_once: True 
+    
